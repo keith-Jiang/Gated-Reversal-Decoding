@@ -206,7 +206,7 @@ run_self_method() {
 }
 
 for BENCH in $BENCHMARKS; do
-    INPUT="$SCRIPT_DIR/facts_repo/${MODEL_SHORT}/data/${BENCH}.jsonl"
+    INPUT="$SCRIPT_DIR/data/TriState/${MODEL_SHORT}/${BENCH}.jsonl"
 
     if [ ! -f "$INPUT" ]; then
         echo "Skipping $BENCH: $INPUT not found"

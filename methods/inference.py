@@ -9,15 +9,15 @@ Usage:
     # Greedy baseline
     python -m methods.inference --method greedy \
         --model meta-llama/Meta-Llama-3-8B \
-        --input_path data/nq_swap.jsonl \
-        --output_path results/greedy/nq_swap.jsonl \
+        --input_path data/Trad_QA/nq.jsonl \
+        --output_path results/greedy/nq.jsonl \
         --max_new_tokens 32
 
     # ARR (Adaptive Regime Routing)
     python -m methods.inference --method arr \
         --model meta-llama/Meta-Llama-3-8B \
-        --input_path data/nq_swap.jsonl \
-        --output_path results/arr/nq_swap.jsonl \
+        --input_path data/Trad_QA/nq.jsonl \
+        --output_path results/arr/nq.jsonl \
         --max_new_tokens 32
 """
 

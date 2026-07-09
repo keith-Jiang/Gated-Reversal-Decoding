@@ -256,7 +256,7 @@ run_origin_method() {
 }
 
 for BENCH in $BENCHMARKS; do
-    INPUT="$SCRIPT_DIR/data/${BENCH}.jsonl"
+    INPUT="$SCRIPT_DIR/data/Trad_QA/${BENCH}.jsonl"
 
     if [ ! -f "$INPUT" ]; then
         echo "Skipping $BENCH: $INPUT not found"

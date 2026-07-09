@@ -4,8 +4,8 @@ Unified evaluation entry point for QA tasks.
 Usage:
     python -m evaluation.unified_eval \
         --task_type qa \
-        --gold_path data/unified/nq_swap.jsonl \
-        --pred_path outputs/cocoa_nq_swap.jsonl \
+        --gold_path data/Trad_QA/nq.jsonl \
+        --pred_path results/cocoa/nq.jsonl \
         --metrics em,f1,substring_em
 """
 
