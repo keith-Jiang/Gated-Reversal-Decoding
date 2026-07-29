@@ -4,19 +4,10 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 cd "$SCRIPT_DIR"
 
-MODEL_NAME=/data/models/Qwen2.5-7B
+MODEL_NAME=YOUR_MODEL_PATH
 export MODEL_NAME
-MODEL_SHORT=$(basename "$MODEL_NAME")
-if [ -z "${PYTHON:-}" ]; then
-    if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-        PYTHON=/home/linux/anaconda3/envs/OptCAD/bin/python
-    else
-        PYTHON=python
-    fi
-fi
-if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-    export PATH="/home/linux/anaconda3/envs/OptCAD/bin:$PATH"
-fi
+MODEL_SHORT=YOUR_MODEL_NAME
+PYTHON=YOUR_PYTHON_PATH
 export PYTHON
 SEED=${SEED:-42}
 ORIGIN_GLOBALLEN=${ORIGIN_GLOBALLEN:-4096}
@@ -256,7 +247,7 @@ run_origin_method() {
 }
 
 for BENCH in $BENCHMARKS; do
-    INPUT="$SCRIPT_DIR/data/Trad_QA/${BENCH}.jsonl"
+    INPUT="$SCRIPT_DIR/data/SQA/${BENCH}.jsonl"
 
     if [ ! -f "$INPUT" ]; then
         echo "Skipping $BENCH: $INPUT not found"

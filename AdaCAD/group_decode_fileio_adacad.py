@@ -261,7 +261,7 @@ def parse_args():
     parser.add_argument("--big_model_inference", type=str, default="no")
     parser.add_argument("--num_gpus", type=int, default=4)
     parser.add_argument("--int4", type=str, default="no", help="If ture, will use int4 quantization.")
-    parser.add_argument("--local_dir", type=str, default="/nas-ssd2/hwang/huggingface", help="Local directory for model weights.")
+    parser.add_argument("--local_dir", type=str, default=None, help="Local directory for model weights.")
     parser.add_argument("--threshold", type=float, default=0.0)
     parser.add_argument("--output_path", type=str, default=None,
                         help="Explicit output path; overrides auto-generated name when set.")

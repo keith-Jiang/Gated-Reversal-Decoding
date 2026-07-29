@@ -4,27 +4,18 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 cd "$SCRIPT_DIR"
 
-MODEL_NAME=/data/models/Meta-Llama-3-8B
+MODEL_NAME=YOUR_MODEL_PATH
 export MODEL_NAME
-MODEL_SHORT=$(basename "$MODEL_NAME")
-if [ -z "${PYTHON:-}" ]; then
-    if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-        PYTHON=/home/linux/anaconda3/envs/OptCAD/bin/python
-    else
-        PYTHON=python
-    fi
-fi
-if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-    export PATH="/home/linux/anaconda3/envs/OptCAD/bin:$PATH"
-fi
+MODEL_SHORT=YOUR_MODEL_NAME
+PYTHON=YOUR_PYTHON_PATH
 export PYTHON
 GPU=${GPU:-0}
 MAX_TOKENS=${MAX_TOKENS:-32}
 MAX_CTX_LEN=${MAX_CTX_LEN:-4064}
 OUTPUT_ROOT=${OUTPUT_ROOT:-results_new}
 OVERWRITE=${OVERWRITE:-0}
-# METHODS=${METHODS:-"greedy coiecd simple_interp arr"}
-METHODS=${METHODS:-"arr"}
+# METHODS=${METHODS:-"greedy coiecd simple_interp grd"}
+METHODS=${METHODS:-"grd"}
 BENCHMARKS=${BENCHMARKS:-"nq tabmwp triviaqa hotpotqa"}
 COIECD_ALPHA=${COIECD_ALPHA:-1.0}
 SIMPLE_INTERP_ALPHA=${SIMPLE_INTERP_ALPHA:-0.75}
@@ -185,7 +176,7 @@ run_self_method() {
         cocoa)
             extra_args="--cocoa_alpha_renyi $COCOA_ALPHA_RENYI --cocoa_z $COCOA_Z --cocoa_gamma $COCOA_GAMMA --cocoa_delta $COCOA_DELTA"
             ;;
-        arr)
+        grd)
             extra_args=""
             ;;
     esac
@@ -202,7 +193,7 @@ run_self_method() {
 }
 
 for BENCH in $BENCHMARKS; do
-    INPUT="$SCRIPT_DIR/data/Trad_QA/${BENCH}.jsonl"
+    INPUT="$SCRIPT_DIR/data/SQA/${BENCH}.jsonl"
 
     if [ ! -f "$INPUT" ]; then
         echo "Skipping $BENCH: $INPUT not found"
@@ -223,7 +214,7 @@ for BENCH in $BENCHMARKS; do
         OUTPUT="$SCRIPT_DIR/${OUTPUT_ROOT}/${method}/${MODEL_SHORT}/${BENCH}.jsonl"
 
         case $method in
-            greedy|coiecd|simple_interp|cocoa|arr)
+            greedy|coiecd|simple_interp|cocoa|grd)
                 run_self_method "$method" "$FILTERED_INPUT" "$OUTPUT"
                 ;;
             *)

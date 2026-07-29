@@ -4,7 +4,7 @@ Unified evaluation entry point for QA tasks.
 Usage:
     python -m evaluation.unified_eval \
         --task_type qa \
-        --gold_path data/Trad_QA/nq.jsonl \
+        --gold_path data/SQA/nq.jsonl \
         --pred_path results/cocoa/nq.jsonl \
         --metrics em,f1,substring_em
 """
@@ -65,7 +65,7 @@ def run_evaluation(task_type: str, gold_path: str, pred_path: str,
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Unified evaluation for OptCAD")
+    parser = argparse.ArgumentParser(description="Unified evaluation for CAD methods")
     parser.add_argument("--task_type", type=str, required=True,
                         choices=["qa"])
     parser.add_argument("--gold_path", type=str, required=True)

@@ -1,0 +1,27 @@
+{
+  "model": "google/gemma-2-9b-it",
+  "total": 3791,
+  "P_right": 2107,
+  "P_wrong": 560,
+  "P_uncertain": 1124,
+  "by_type": {
+    "location": {
+      "total": 1088,
+      "P_right": 583,
+      "P_wrong": 116,
+      "P_uncertain": 389
+    },
+    "person": {
+      "total": 1485,
+      "P_right": 734,
+      "P_wrong": 352,
+      "P_uncertain": 399
+    },
+    "scientific_term": {
+      "total": 1218,
+      "P_right": 790,
+      "P_wrong": 92,
+      "P_uncertain": 336
+    }
+  }
+}

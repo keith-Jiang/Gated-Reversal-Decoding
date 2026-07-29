@@ -4,19 +4,10 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 cd "$SCRIPT_DIR"
 
-MODEL_SHORT=${MODEL_SHORT:-Meta-Llama-3-8B}
-MODEL_NAME=/data/models/$MODEL_SHORT
+MODEL_SHORT=YOUR_MODEL_NAME
+MODEL_NAME=YOUR_MODEL_PATH
 export MODEL_NAME MODEL_SHORT
-if [ -z "${PYTHON:-}" ]; then
-    if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-        PYTHON=/home/linux/anaconda3/envs/OptCAD/bin/python
-    else
-        PYTHON=python
-    fi
-fi
-if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-    export PATH="/home/linux/anaconda3/envs/OptCAD/bin:$PATH"
-fi
+PYTHON=YOUR_PYTHON_PATH
 export PYTHON
 SEED=${SEED:-42}
 ORIGIN_GLOBALLEN=${ORIGIN_GLOBALLEN:-4096}

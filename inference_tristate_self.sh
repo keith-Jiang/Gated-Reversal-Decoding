@@ -4,26 +4,17 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 cd "$SCRIPT_DIR"
 
-MODEL_SHORT=${MODEL_SHORT:-Qwen2.5-7B}
-MODEL_NAME=/data/models/$MODEL_SHORT
+MODEL_SHORT=YOUR_MODEL_NAME
+MODEL_NAME=YOUR_MODEL_PATH
 export MODEL_NAME MODEL_SHORT
-if [ -z "${PYTHON:-}" ]; then
-    if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-        PYTHON=/home/linux/anaconda3/envs/OptCAD/bin/python
-    else
-        PYTHON=python
-    fi
-fi
-if [ -x /home/linux/anaconda3/envs/OptCAD/bin/python ]; then
-    export PATH="/home/linux/anaconda3/envs/OptCAD/bin:$PATH"
-fi
+PYTHON=YOUR_PYTHON_PATH
 export PYTHON
 GPU=${GPU:-0}
 MAX_TOKENS=${MAX_TOKENS:-32}
 MAX_CTX_LEN=${MAX_CTX_LEN:-4064}
 OUTPUT_ROOT=${OUTPUT_ROOT:-results_new}
 OVERWRITE=${OVERWRITE:-0}
-METHODS=${METHODS:-"greedy greedy_no_ctx simple_interp_0.25 simple_interp_0.5 simple_interp_0.75 coiecd arr"}
+METHODS=${METHODS:-"greedy greedy_no_ctx simple_interp_0.25 simple_interp_0.5 simple_interp_0.75 coiecd grd"}
 BENCHMARKS=${BENCHMARKS:-"C_right_P_wrong C_right_P_right C_wrong_P_right"}
 COIECD_ALPHA=${COIECD_ALPHA:-1.0}
 COCOA_ALPHA_RENYI=${COCOA_ALPHA_RENYI:-0.5}
@@ -189,7 +180,7 @@ run_self_method() {
         cocoa)
             extra_args="--cocoa_alpha_renyi $COCOA_ALPHA_RENYI --cocoa_z $COCOA_Z --cocoa_gamma $COCOA_GAMMA --cocoa_delta $COCOA_DELTA"
             ;;
-        arr)
+        grd)
             extra_args=""
             ;;
     esac
@@ -230,7 +221,7 @@ for BENCH in $BENCHMARKS; do
                 OUTPUT="$SCRIPT_DIR/${OUTPUT_ROOT}/${method}/${MODEL_SHORT}/${BENCH}.jsonl"
                 run_self_method "$method" "$FILTERED_INPUT" "$OUTPUT" "$interp_alpha"
                 ;;
-            greedy|greedy_no_ctx|cad|coiecd|simple_interp|cocoa|arr)
+            greedy|greedy_no_ctx|cad|coiecd|simple_interp|cocoa|grd)
                 OUTPUT="$SCRIPT_DIR/${OUTPUT_ROOT}/${method}/${MODEL_SHORT}/${BENCH}.jsonl"
                 run_self_method "$method" "$FILTERED_INPUT" "$OUTPUT"
                 ;;
