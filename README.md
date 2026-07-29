@@ -1,8 +1,6 @@
 <div align="center">
 
-# From Context-Aware to Conflict-Aware
-
-### Generalizing Contrastive Decoding for Knowledge Conflict in LLMs
+# From Context-Aware to Conflict-Aware: Generalizing Contrastive Decoding for Knowledge Conflict in LLMs
 
 [![arXiv](https://img.shields.io/badge/arXiv-2606.10298-b31b1b.svg)](https://arxiv.org/abs/2606.10298)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -10,9 +8,9 @@
 
 </div>
 
-**Runze Jiang**<sup>1</sup>, **Taiqiang Wu**<sup>1*</sup>, **Yan Wang**<sup>1</sup>, **Bingyu Zhu**<sup>1</sup>, **Longtao Huang**<sup>1</sup>
+**Runze Jiang**<sup>1,2</sup>, **Taiqiang Wu**<sup>3</sup>, **Yan Wang**<sup>2</sup>, **Bingyu Zhu**<sup>2†</sup>, **Longtao Huang**<sup>2</sup>
 
-<sup>1</sup> Zhejiang University &nbsp; | &nbsp; <sup>*</sup> Corresponding author
+<sup>1</sup> Peking University &nbsp; | &nbsp; <sup>2</sup> Alibaba Group &nbsp; | &nbsp; <sup>3</sup> The University of Hong Kong &nbsp; | &nbsp; <sup>†</sup> Corresponding author
 
 [English](./README.md) | [中文](./README_zh.md)
 
@@ -20,14 +18,16 @@
 
 ## 🔍 Overview
 
-Large language models often face **knowledge conflicts** between their parametric memory (prior knowledge) and retrieved contextual evidence. While contrastive decoding methods such as CAD have shown promise in biasing generation toward context, they operate under a uniform *context-aware* paradigm that overlooks the nuanced *conflict-aware* dynamics at individual token positions.
+Large language models often face **knowledge conflicts** between their parametric memory (prior knowledge) and retrieved contextual evidence. Existing contrastive decoding methods frame this as *context-aware amplification* — strengthening the context-conditioned distribution against the prior-only distribution — which implicitly privileges context and fails when the prior is correct and the context is misleading.
 
-We propose a suite of **conflict-aware decoding** strategies that generalize contrastive decoding from "context-aware" to "conflict-aware" — adaptively modulating the context–prior trade-off based on token-level conflict signals.
+We recast this problem as **conflict-aware authority allocation**. An affine combination of prior and context logits yields a **power family** $q_{\tau,t}(y) \propto p_{\text{pri},t}(y)^{1-\tau}p_{\text{ctx},t}(y)^{\tau}$ that subsumes existing contrastive decoding methods as fixed-exponent members. The family exposes a **regime asymmetry**: interpolation ($\tau \in (0,1)$) under-corrects when context is right, while extrapolation ($\tau > 1$) amplifies errors unboundedly when the prior is right — a structural gap that no static $\tau$ can cover.
 
-**Key features:**
-- 🧩 **Unified single-GPU decoding** — all methods run on one GPU with a shared dual-process JSONL format
-- ⚡ **Token-level adaptivity** — per-token conflict signals replace fixed global α
-- 📊 **Comprehensive benchmarks** — QA (NQ, HotpotQA, TriviaQA, TabMWP) + tristate conflict splits
+To make both conflict directions measurable, we introduce **TriState-Bench**, which screens each model's prior knowledge via Greedy-Anchored Prior Screening (GAPS) to label three states — correction, resistance, and agreement — per model. To operationalize authority allocation, we propose **Gated Reversal Decoding (GRD)**, which gates trust between prior and context at the first conflict step and resolves conflict tokens through their pairwise reversal threshold.
+
+**Key contributions:**
+- 🔬 **Power family + regime asymmetry** — a unified theoretical framework revealing that interpolation and extrapolation fail in opposite conflict directions
+- 📊 **TriState-Bench** — model-aware evaluation that makes both conflict directions measurable
+- 🚀 **Gated Reversal Decoding (GRD)** — conflict-aware decoding that lifts resistance EM from $2.1$ to $20.8$ without sacrificing correction or agreement
 - 🔁 **Reproducible baselines** — original CAD, AdaCAD, CoCoA, and COIECD implementations preserved
 
 ## 📰 News
@@ -80,7 +80,7 @@ Key dependencies: `torch==2.5.0`, `transformers==4.51.3`, `accelerate`, `dataset
 │   │   ├── nq.jsonl
 │   │   ├── tabmwp.jsonl
 │   │   └── triviaqa.jsonl
-│   └── TriState/                    # Model-specific tristate benchmarks
+│   └── TriState/                    # Model-specific TriState benchmarks
 │       └── {MODEL_SHORT}/
 │           ├── C_right_P_wrong.jsonl
 │           ├── C_right_P_right.jsonl
@@ -91,8 +91,8 @@ Key dependencies: `torch==2.5.0`, `transformers==4.51.3`, `accelerate`, `dataset
 ├── COIECD/                          # Original COIECD resources
 ├── inference_qa_self.sh             # Batch QA inference, single-GPU
 ├── inference_qa_origin.sh           # Batch QA inference, dual-GPU baselines
-├── inference_tristate_self.sh       # Batch tristate inference, single-GPU
-├── inference_tristate_origin.sh     # Batch tristate inference, dual-GPU baselines
+├── inference_tristate_self.sh       # Batch TriState inference, single-GPU
+├── inference_tristate_origin.sh     # Batch TriState inference, dual-GPU baselines
 └── requirements.txt
 ```
 
@@ -104,9 +104,6 @@ All methods consume paired context/prior prompts from a unified dual-process JSO
 |--------|------|-------------|
 | `greedy` | `methods/greedy.py` | Greedy decoding with the context prompt. |
 | `greedy_no_ctx` | `methods/greedy_no_ctx.py` | Greedy decoding with the prior-only prompt. |
-| `cad` | `methods/cad.py` | Fixed-α contrastive context-aware decoding (ICLR 2024). |
-| `adacad` | `methods/adacad.py` | Adaptive CAD with JSD-based token-level α. |
-| `cocoa` | `methods/cocoa.py` | CoCoA-style logit mixing with perturbation terms. |
 | `coiecd` | `methods/coiecd.py` | Entropy-constrained decoding for context/prior logits. |
 | `grd` | `methods/grd.py` | **Gated Reversal Decoding** — stateful conflict gating with pairwise reversal at τ\*. |
 | `simple_interp` | `methods/simple_interp.py` | Fixed-α interpolation between context and prior logits. |
@@ -125,7 +122,7 @@ All benchmarks use a **dual-process JSONL** format. Each example consists of two
 - `assigned_process=0` — context prompt (evidence + question)
 - `assigned_process=1` — prior prompt (question only)
 
-### QA Benchmarks
+### Standard QA Benchmarks
 
 ```text
 data/SQA/hotpotqa.jsonl
@@ -134,7 +131,7 @@ data/SQA/tabmwp.jsonl
 data/SQA/triviaqa.jsonl
 ```
 
-### Tristate Benchmarks
+### TriState-Bench
 
 ```text
 data/TriState/{MODEL_SHORT}/C_right_P_wrong.jsonl
@@ -229,12 +226,12 @@ DEVICE="0,1" \
 METHODS="cad adacad cocoa" \
 bash inference_qa_origin.sh
 
-# Tristate — single-GPU
+# TriState — single-GPU
 MODEL_SHORT=Gemma2.5-7B \
 METHODS="greedy greedy_no_ctx simple_interp_0.25 simple_interp_0.5 simple_interp_0.75 coiecd grd" \
 bash inference_tristate_self.sh
 
-# Tristate — dual-GPU baselines
+# TriState — dual-GPU baselines
 MODEL_SHORT=Meta-Llama-3-8B \
 DEVICE="0,1" \
 METHODS="cad_0.25 cad_0.5 cad_0.75 cad adacad cocoa" \

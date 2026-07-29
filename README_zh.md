@@ -1,8 +1,6 @@
 <div align="center">
 
-# From Context-Aware to Conflict-Aware
-
-### Generalizing Contrastive Decoding for Knowledge Conflict in LLMs
+# From Context-Aware to Conflict-Aware: Generalizing Contrastive Decoding for Knowledge Conflict in LLMs
 
 [![arXiv](https://img.shields.io/badge/arXiv-2606.10298-b31b1b.svg)](https://arxiv.org/abs/2606.10298)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -10,9 +8,9 @@
 
 </div>
 
-**Runze Jiang**<sup>1</sup>, **Taiqiang Wu**<sup>1*</sup>, **Yan Wang**<sup>1</sup>, **Bingyu Zhu**<sup>1</sup>, **Longtao Huang**<sup>1</sup>
+**Runze Jiang**<sup>1,2</sup>, **Taiqiang Wu**<sup>3</sup>, **Yan Wang**<sup>2</sup>, **Bingyu Zhu**<sup>2†</sup>, **Longtao Huang**<sup>2</sup>
 
-<sup>1</sup> Zhejiang University &nbsp; | &nbsp; <sup>*</sup> Corresponding author
+<sup>1</sup> Peking University &nbsp; | &nbsp; <sup>2</sup> Alibaba Group &nbsp; | &nbsp; <sup>3</sup> The University of Hong Kong &nbsp; | &nbsp; <sup>†</sup> Corresponding author
 
 [English](./README.md) | [中文](./README_zh.md)
 
@@ -20,14 +18,16 @@
 
 ## 🔍 概述
 
-大语言模型经常面临参数记忆（先验知识）与检索到的上下文证据之间的**知识冲突**。尽管 CAD 等对比解码方法在偏向上下文生成方面表现出色，但它们采用统一的 *context-aware* 范式，忽略了 token 级别上细微的 *conflict-aware* 动态变化。
+大语言模型经常面临参数记忆（先验知识）与检索到的上下文证据之间的**知识冲突**。现有对比解码方法将这一问题建模为 *context-aware amplification*——增强上下文条件分布以压制仅依赖先验的分布——但这隐含地偏向上下文，当先验正确而上下文具有误导性时反而会覆盖模型原本正确的概率结构。
 
-我们提出了一系列 **conflict-aware decoding** 策略，将对比解码从「上下文感知」推广到「冲突感知」——基于 token 级别的冲突信号自适应调节上下文与先验之间的权衡。
+我们将这一问题重新定义为 **conflict-aware authority allocation**（冲突感知的权威分配）。在 logit 空间中，先验与上下文分布的仿射组合导出一个**幂乘族** $q_{\tau,t}(y) \propto p_{\text{pri},t}(y)^{1-\tau}p_{\text{ctx},t}(y)^{\tau}$，它将现有对比解码方法统一为固定指数的特例。该族暴露了一个**机制非对称性**：插值（$\tau \in (0,1)$）在上下文正确时纠正不足，而外推（$\tau > 1$）在先验正确时无界放大错误——这是一个结构性缺陷，任何静态 $\tau$ 都无法同时覆盖两个冲突方向。
 
-**核心特性：**
-- 🧩 **统一单卡解码** —— 所有方法在单 GPU 上运行，共享 dual-process JSONL 格式
-- ⚡ **Token 级自适应** —— 逐 token 的冲突信号替代固定的全局 α
-- 📊 **全面评测基准** —— QA (NQ, HotpotQA, TriviaQA, TabMWP) + 三态冲突切分
+为使两个冲突方向均可衡量，我们提出 **TriState-Bench**，通过 Greedy-Anchored Prior Screening (GAPS) 在每个模型上先探测其参数化先验答案，再为每个模型单独标注校正（correction）、抵抗（resistance）和一致（agreement）三种状态。为实现权威分配，我们提出 **Gated Reversal Decoding (GRD)**，在首次冲突步长对先验和上下文的信任进行门控，并通过成对逆转阈值解决冲突 token。
+
+**核心贡献：**
+- 🔬 **幂乘族 + 机制非对称性** —— 统一理论框架，揭示插值与外推在相反冲突方向上的结构性失败
+- 📊 **TriState-Bench** —— 模型感知评测，使两个冲突方向均可衡量
+- 🚀 **Gated Reversal Decoding (GRD)** —— 冲突感知解码，将抵抗 EM 从 $2.1$ 提升至 $20.8$，且不牺牲校正与一致性能
 - 🔁 **可复现 baseline** —— 原始 CAD、AdaCAD、CoCoA、COIECD 实现完整保留
 
 ## 📰 最新动态
@@ -104,9 +104,6 @@ pip install -r requirements.txt
 |------|------|------|
 | `greedy` | `methods/greedy.py` | 使用带上下文 prompt 的 greedy 解码 |
 | `greedy_no_ctx` | `methods/greedy_no_ctx.py` | 仅使用 prior prompt 的 greedy 解码 |
-| `cad` | `methods/cad.py` | 固定 α 对比式上下文感知解码 (ICLR 2024) |
-| `adacad` | `methods/adacad.py` | 基于 JSD 自适应调整 token 级 α |
-| `cocoa` | `methods/cocoa.py` | CoCoA 风格 logit 融合与扰动项 |
 | `coiecd` | `methods/coiecd.py` | 熵约束融合 context/prior logits |
 | `grd` | `methods/grd.py` | **Gated Reversal Decoding** — 有状态冲突门控 + τ\* 成对逆转 |
 | `simple_interp` | `methods/simple_interp.py` | 固定 α 的 context/prior logits 插值 |
@@ -125,7 +122,7 @@ pip install -r requirements.txt
 - `assigned_process=0` — 包含证据和问题的上下文 prompt
 - `assigned_process=1` — 仅包含问题的 prior prompt
 
-### QA 评测数据
+### Standard QA Benchmarks
 
 ```text
 data/SQA/hotpotqa.jsonl
@@ -134,7 +131,7 @@ data/SQA/tabmwp.jsonl
 data/SQA/triviaqa.jsonl
 ```
 
-### 三态评测数据
+### TriState-Bench
 
 ```text
 data/TriState/{MODEL_SHORT}/C_right_P_wrong.jsonl
