@@ -1,6 +1,6 @@
 """
-Unified single-GPU inference for Greedy, COIECD, AdaCAD, CoCoA, CoCoA_test,
-SimpleInterp, and ARR methods.
+Unified single-GPU inference for Greedy, COIECD, AdaCAD, CoCoA,
+SimpleInterp, and GRD methods.
 
 Reads the dual-process JSONL format (same as CAD/AdaCAD/CoCoA) and runs
 inference on a single GPU. Supports resume via append mode.
@@ -301,7 +301,7 @@ def simple_interp_generate(model, tokenizer, ctx_prompt, prior_prompt,
 
 
 # ---------------------------------------------------------------------------
-# CoCoA_test decoding (paper-faithful, token-by-token adaptive gating)
+# CAD decoding (token-by-token, α fixed)
 # ---------------------------------------------------------------------------
 
 def cad_generate(model, tokenizer, ctx_prompt, prior_prompt,
@@ -453,142 +453,6 @@ def cocoa_generate(model, tokenizer, ctx_prompt, prior_prompt,
 
 
 # ---------------------------------------------------------------------------
-# CoCoA_test decoding (paper-faithful, token-by-token adaptive gating)
-# ---------------------------------------------------------------------------
-
-def cocoa_test_generate(model, tokenizer, ctx_prompt, prior_prompt,
-                        max_new_tokens, max_ctx_len,
-                        alpha_renyi=0.5, z=5.0, gamma=1.0, delta=1e-8):
-    from methods.cocoa_test import CoCoATestDecoding
-    method = CoCoATestDecoding(
-        alpha_renyi=alpha_renyi, z=z, gamma=gamma, delta=delta,
-    )
-
-    inputs = build_batch_inputs(
-        tokenizer, [ctx_prompt, prior_prompt], max_ctx_len, model.device,
-    )
-
-    input_ids = inputs.input_ids
-    attention_mask = inputs.attention_mask
-    past_kv = create_decode_cache(model, input_ids, max_new_tokens)
-    cache_position = get_cache_position(input_ids, past_kv)
-    generated_ids = []
-    eos_ids = get_eos_token_ids(model, tokenizer)
-
-    for _ in range(max_new_tokens):
-        with torch.no_grad():
-            out = model(**get_decode_model_inputs(
-                input_ids, attention_mask, past_kv, cache_position,
-            ))
-            past_kv = out.past_key_values
-
-        logits = out.logits[:, -1, :]
-        logits = logits - logits.logsumexp(dim=-1, keepdim=True)
-
-        merged = method.get_next_token_logits(logits[0:1], logits[1:2])
-        next_token = torch.argmax(merged, dim=-1)
-
-        if next_token.item() in eos_ids:
-            break
-        generated_ids.append(next_token.item())
-
-        n = input_ids.shape[0]
-        input_ids = next_token.unsqueeze(0).expand(n, -1)
-        attention_mask = torch.cat(
-            [attention_mask, torch.ones(n, 1, dtype=torch.long, device=model.device)],
-            dim=1,
-        )
-        if cache_position is not None:
-            cache_position = cache_position[-1:] + 1
-
-    tokenizer.padding_side = "right"
-    return tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
-
-
-# ---------------------------------------------------------------------------
-# Adaptive Regime Routing (ARR): two-stage regime gate + conflict strength
-# ---------------------------------------------------------------------------
-
-def arr_c_js_generate(model, tokenizer, ctx_prompt, prior_prompt,
-                          max_new_tokens, max_ctx_len,
-                          route_warmup_beta=0.0):
-    from methods.arr_c_js import ARRCJsDecoding
-    method = ARRCJsDecoding(warmup_beta=route_warmup_beta)
-    return arr_generate_with_method(
-        model, tokenizer, ctx_prompt, prior_prompt,
-        max_new_tokens, max_ctx_len, method,
-    )
-
-
-
-
-def arr_c_kl_generate(model, tokenizer, ctx_prompt, prior_prompt,
-                      max_new_tokens, max_ctx_len,
-                      route_warmup_beta=0.0):
-    from methods.arr_c_kl import ARRCKlDecoding
-    method = ARRCKlDecoding(warmup_beta=route_warmup_beta)
-    return arr_generate_with_method(
-        model, tokenizer, ctx_prompt, prior_prompt,
-        max_new_tokens, max_ctx_len, method,
-    )
-
-
-def arr_c_discrete_generate(model, tokenizer, ctx_prompt, prior_prompt,
-                            max_new_tokens, max_ctx_len,
-                            route_warmup_beta=0.0):
-    from methods.arr_c_discrete import ARRCDiscreteDecoding
-    method = ARRCDiscreteDecoding(warmup_beta=route_warmup_beta)
-    return arr_generate_with_method(
-        model, tokenizer, ctx_prompt, prior_prompt,
-        max_new_tokens, max_ctx_len, method,
-    )
-
-
-def arr_generate_with_method(model, tokenizer, ctx_prompt, prior_prompt,
-                             max_new_tokens, max_ctx_len, method):
-
-    inputs = build_batch_inputs(
-        tokenizer, [ctx_prompt, prior_prompt], max_ctx_len, model.device,
-    )
-
-    input_ids = inputs.input_ids
-    attention_mask = inputs.attention_mask
-    past_kv = create_decode_cache(model, input_ids, max_new_tokens)
-    cache_position = get_cache_position(input_ids, past_kv)
-    generated_ids = []
-    eos_ids = get_eos_token_ids(model, tokenizer)
-
-    for _ in range(max_new_tokens):
-        with torch.no_grad():
-            out = model(**get_decode_model_inputs(
-                input_ids, attention_mask, past_kv, cache_position,
-            ))
-            past_kv = out.past_key_values
-
-        logits = out.logits[:, -1, :]
-        logits = logits - logits.logsumexp(dim=-1, keepdim=True)
-
-        merged = method.get_next_token_logits(logits[0:1], logits[1:2])
-        next_token = torch.argmax(merged, dim=-1)
-
-        if next_token.item() in eos_ids:
-            break
-        generated_ids.append(next_token.item())
-
-        n = input_ids.shape[0]
-        input_ids = next_token.unsqueeze(0).expand(n, -1)
-        attention_mask = torch.cat(
-            [attention_mask, torch.ones(n, 1, dtype=torch.long, device=model.device)],
-            dim=1,
-        )
-        if cache_position is not None:
-            cache_position = cache_position[-1:] + 1
-
-    tokenizer.padding_side = "right"
-    return tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
-
-
-# ---------------------------------------------------------------------------
 # GRD: zero-calibration first-conflict gate + tau* reversal strength
 # ---------------------------------------------------------------------------
 
@@ -655,9 +519,7 @@ def main():
                         choices=["greedy", "greedy_no_ctx",
                                  "cad", "adacad", "cocoa",
                                  "coiecd", "simple_interp",
-                                 "cocoa_test",
-                                 "arr_c_js", "arr_c_kl",
-                                 "arr_c_discrete", "grd"])
+                                 "grd"])
     parser.add_argument("--model", type=str, required=True,
                         help="HuggingFace model id or local path")
     parser.add_argument("--input_path", type=str, required=True)
@@ -684,17 +546,8 @@ def main():
                         help="CoCoA global mixing alpha")
     parser.add_argument("--cocoa_lambda_pm", type=float, default=100.0,
                         help="CoCoA z-score perturbation weight")
-    # CoCoA_test-specific (paper-faithful)
-    parser.add_argument("--cocoa_alpha_renyi", type=float, default=0.5,
-                        help="CoCoA_test Rényi divergence order α")
-    parser.add_argument("--cocoa_z", type=float, default=5.0,
-                        help="CoCoA_test contextual peakedness weight z")
     parser.add_argument("--cocoa_gamma", type=float, default=1.0,
-                        help="CoCoA / CoCoA_test gamma weight")
-    parser.add_argument("--cocoa_delta", type=float, default=1e-8,
-                        help="CoCoA_test numerical stability constant δ")
-    # ARR-specific
-    parser.add_argument("--route_warmup_beta", type=float, default=0.0)
+                        help="CoCoA gamma weight")
     # GRD-specific
     parser.add_argument("--grd_lambda", type=float, default=0.75,
                         help="GRD commitment depth on prior-trusted conflict tokens; "
@@ -780,33 +633,6 @@ def main():
                     model, tokenizer, ctx_prompt, prior_prompt,
                     args.max_new_tokens, args.max_ctx_len,
                     interp_alpha=args.interp_alpha,
-                )
-            elif args.method == "cocoa_test":
-                prediction = cocoa_test_generate(
-                    model, tokenizer, ctx_prompt, prior_prompt,
-                    args.max_new_tokens, args.max_ctx_len,
-                    alpha_renyi=args.cocoa_alpha_renyi,
-                    z=args.cocoa_z,
-                    gamma=args.cocoa_gamma,
-                    delta=args.cocoa_delta,
-                )
-            elif args.method == "arr_c_js":
-                prediction = arr_c_js_generate(
-                    model, tokenizer, ctx_prompt, prior_prompt,
-                    args.max_new_tokens, args.max_ctx_len,
-                    route_warmup_beta=args.route_warmup_beta,
-                )
-            elif args.method == "arr_c_kl":
-                prediction = arr_c_kl_generate(
-                    model, tokenizer, ctx_prompt, prior_prompt,
-                    args.max_new_tokens, args.max_ctx_len,
-                    route_warmup_beta=args.route_warmup_beta,
-                )
-            elif args.method == "arr_c_discrete":
-                prediction = arr_c_discrete_generate(
-                    model, tokenizer, ctx_prompt, prior_prompt,
-                    args.max_new_tokens, args.max_ctx_len,
-                    route_warmup_beta=args.route_warmup_beta,
                 )
             elif args.method == "grd":
                 prediction = grd_generate(
